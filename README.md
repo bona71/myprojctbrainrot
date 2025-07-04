@@ -404,3 +404,67 @@ local function serverHop()
         return
     end
     local servers = {}
+    for _, v in ipairs(body.data) do
+        if v.playing < v.maxPlayers and v.id ~= game.JobId then
+            table.insert(servers, v.id)
+        end
+    end
+    if #servers > 0 then
+        local serverId = servers[math.random(#servers)]
+        print("Server Hop para:", serverId)
+        TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
+    else
+        print("Nenhum servidor disponível.")
+    end
+end
+hopBtn.MouseButton1Click:Connect(serverHop)
+
+-- Função Speed/FakeWalk
+function fakeWalk()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if not boosted then conn:Disconnect() return end
+        local moveDir = humanoid.MoveDirection
+        if moveDir.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + moveDir.Unit * speedMultiplier * 0.2
+        end
+    end)
+end
+
+-- HighJump
+UIS.InputBegan:Connect(function(i)
+    if i.KeyCode == Enum.KeyCode.Space and toggles.HighJump then
+        HRP.Velocity = Vector3.new(0, HIGH_JUMP, 0)
+    end
+end)
+
+-- Anti-fall
+Hum:GetPropertyChangedSignal("FloorMaterial"):Connect(function()
+    if Hum.FloorMaterial == Enum.Material.Air and HRP.Position.Y < -20 then
+        HRP.Velocity = Vector3.new(0,100,0)
+    end
+end)
+
+-- Speed reset ao respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    boosted = false
+end)
+
+-- Layouts
+for _, scroll in ipairs({scroll1, scroll2}) do
+    local layout = Instance.new("UIListLayout", scroll)
+    layout.Padding = UDim.new(0, 10)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+end
+
+topBar.Parent = frame
+tabBar.Parent = frame
+for _, f in ipairs(tabFrames) do f.Parent = frame end
+
+-- Fim do script
