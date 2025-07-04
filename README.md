@@ -1,5 +1,5 @@
---[[ 🧠 AZARO HUB: Menu RGB Interativo com Três Abas
-Feito por: bona 💀 | Menu RGB e Tabs por ChatGPT
+--[[ 🧠 AZARO HUB: Menu RGB Interativo com Três Abas + ESP Brain do Watch
+Feito por: bona 💀 | Menu RGB e Tabs por ChatGPT | ESP Brain por bona71
 ]]
 
 -- Serviços
@@ -21,10 +21,87 @@ local NORMAL_SPEED = 16
 local PlaceId = game.PlaceId
 
 -- Estados
-local toggles = { Speed = false, HighJump = false, Steal = false, ESP = false, BaseESP = false }
+local toggles = { Speed = false, HighJump = false, Steal = false, ESP = false, BaseESP = false, ["ESP Brain do Watch"] = false }
 local stealPlatform
 local boosted = false
 local speedMultiplier = 1.55
+
+-- Variáveis do ESP Brain do Watch
+local activeLockTimeEsp = false
+local lteInstances = {}
+local plotName = nil -- nome do plot do jogador
+
+do -- Detecta o nome do plot do jogador, se existir
+    local success, result = pcall(function()
+        for _, plot in pairs(workspace.Plots:GetChildren()) do
+            if plot.Owner and plot.Owner.Value == LocalPlayer then
+                plotName = plot.Name
+                break
+            end
+        end
+    end)
+end
+
+-- Função do ESP Brain do Watch
+local function updatelock()
+    if not activeLockTimeEsp then
+        for _, instance in pairs(lteInstances) do
+            if instance then instance:Destroy() end
+        end
+        lteInstances = {}
+        return
+    end
+
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        local billboardName = "LockTimeESP_" .. plot.Name
+        local timeLabel = plot:FindFirstChild("Purchases", true)
+            and plot.Purchases:FindFirstChild("PlotBlock", true)
+            and plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true)
+            and plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
+
+        if timeLabel and timeLabel:IsA("TextLabel") then
+            local existing = lteInstances[plot.Name]
+            local isUnlocked = timeLabel.Text == "0s"
+            local displayText = isUnlocked and "Unlocked" or ("Lock: " .. timeLabel.Text)
+
+            local color = Color3.fromRGB(255, 255, 0) -- amarelo padrão
+            if plot.Name == plotName then
+                color = Color3.fromRGB(0, 255, 0) -- verde para seu plot
+            elseif isUnlocked then
+                color = Color3.fromRGB(255, 0, 0) -- vermelho se desbloqueado
+            end
+
+            if not existing then
+                local gui = Instance.new("BillboardGui")
+                gui.Name = billboardName
+                gui.Size = UDim2.new(0, 120, 0, 25)
+                gui.StudsOffset = Vector3.new(0, 4, 0)
+                gui.AlwaysOnTop = true
+                gui.Adornee = plot.Purchases.PlotBlock.Main
+                gui.Parent = plot
+
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextScaled = true
+                label.TextColor3 = color
+                label.TextStrokeTransparency = 0
+                label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                label.Font = Enum.Font.SourceSansBold
+                label.Text = displayText
+                label.Parent = gui
+
+                lteInstances[plot.Name] = gui
+            else
+                local label = existing:FindFirstChildOfClass("TextLabel")
+                if label then
+                    label.Text = displayText
+                    label.TextColor3 = color
+                end
+            end
+        end
+    end
+end
 
 -- GUI Principal
 local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -33,7 +110,7 @@ gui.Name = "AzaroHubRGB"
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 430, 0, 340)
 frame.Position = UDim2.new(0, 50, 0, 80)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BackgroundColor3 = Color3.fromRGB(35, 20, 60) -- início: roxo escuro
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
@@ -46,13 +123,13 @@ end
 
 createUICorner(frame, 12)
 
--- RGB Effect
+-- RGB Effect com degrade mais bonito
 local rgb = 0
 RunService.RenderStepped:Connect(function()
-    rgb = rgb + 1
-    if rgb > 360 then rgb = 0 end
-    local color = Color3.fromHSV(rgb/360, 1, 1)
-    frame.BackgroundColor3 = color:lerp(Color3.fromRGB(20,20,20), 0.7)
+    rgb = (rgb + 0.8) % 360
+    local color = Color3.fromHSV(rgb/360, 0.8, 1)
+    local baseColor = Color3.fromRGB(35, 20, 60)
+    frame.BackgroundColor3 = color:lerp(baseColor, 0.5)
 end)
 
 -- TopBar com Título e Botão Fechar
@@ -106,7 +183,7 @@ for i, name in ipairs(tabNames) do
     tab.Text = name
     tab.Font = Enum.Font.FredokaOne
     tab.TextSize = 20
-    tab.BackgroundColor3 = (i==1) and Color3.fromRGB(50,50,50) or Color3.fromRGB(30,30,30)
+    tab.BackgroundColor3 = (i==1) and Color3.fromRGB(70,40,120) or Color3.fromRGB(40,30,60)
     tab.TextColor3 = Color3.new(1,1,1)
     tab.AutoButtonColor = false
     createUICorner(tab, 8)
@@ -128,7 +205,7 @@ end
 local function selectTab(idx)
     for i=1,#tabFrames do
         tabFrames[i].Visible = (i==idx)
-        tabs[i].BackgroundColor3 = (i==idx) and Color3.fromRGB(50,50,50) or Color3.fromRGB(30,30,30)
+        tabs[i].BackgroundColor3 = (i==idx) and Color3.fromRGB(70,40,120) or Color3.fromRGB(40,30,60)
     end
     selectedTab = idx
 end
@@ -149,7 +226,7 @@ local function addToggleLine(parent, name, order, callback)
     container.LayoutOrder = order
     container.Size = UDim2.new(1, -20, 0, 44)
     container.Position = UDim2.new(0, 10, 0, (order-1)*50)
-    container.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    container.BackgroundColor3 = Color3.fromRGB(40, 30, 60)
     createUICorner(container, 6)
 
     local label = Instance.new("TextLabel", container)
@@ -214,7 +291,7 @@ end)
 -- Aba 2: Visual
 local scroll2 = Instance.new("ScrollingFrame", tabFrames[2])
 scroll2.Size = UDim2.new(1, 0, 1, 0)
-scroll2.CanvasSize = UDim2.new(0,0,0,400)
+scroll2.CanvasSize = UDim2.new(0,0,0,600)
 scroll2.ScrollBarThickness = 8
 createUICorner(scroll2, 8)
 
@@ -275,6 +352,22 @@ addToggleLine(scroll2, "BaseESP", 2, function(v)
     end
 end)
 
+-- NOVA FUNÇÃO: ESP Brain do Watch
+addToggleLine(scroll2, "ESP Brain do Watch", 3, function(v)
+    activeLockTimeEsp = v
+    if v then
+        -- Atualiza sempre que ativo
+        task.spawn(function()
+            while activeLockTimeEsp do
+                updatelock()
+                task.wait(1)
+            end
+        end)
+    else
+        updatelock()
+    end
+end)
+
 -- Aba 3: Servidor
 local scroll3 = Instance.new("Frame", tabFrames[3])
 scroll3.Size = UDim2.new(1, 0, 1, 0)
@@ -283,7 +376,7 @@ scroll3.BackgroundTransparency = 1
 local hopBtn = Instance.new("TextButton", scroll3)
 hopBtn.Size = UDim2.new(0, 260, 0, 44)
 hopBtn.Position = UDim2.new(0.5, -130, 0.2, 0)
-hopBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+hopBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
 hopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 hopBtn.TextSize = 22
 hopBtn.Font = Enum.Font.FredokaOne
@@ -311,67 +404,3 @@ local function serverHop()
         return
     end
     local servers = {}
-    for _, v in ipairs(body.data) do
-        if v.playing < v.maxPlayers and v.id ~= game.JobId then
-            table.insert(servers, v.id)
-        end
-    end
-    if #servers > 0 then
-        local serverId = servers[math.random(#servers)]
-        print("Server Hop para:", serverId)
-        TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
-    else
-        print("Nenhum servidor disponível.")
-    end
-end
-hopBtn.MouseButton1Click:Connect(serverHop)
-
--- Função Speed/FakeWalk
-function fakeWalk()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        if not boosted then conn:Disconnect() return end
-        local moveDir = humanoid.MoveDirection
-        if moveDir.Magnitude > 0 then
-            hrp.CFrame = hrp.CFrame + moveDir.Unit * speedMultiplier * 0.2
-        end
-    end)
-end
-
--- HighJump
-UIS.InputBegan:Connect(function(i)
-    if i.KeyCode == Enum.KeyCode.Space and toggles.HighJump then
-        HRP.Velocity = Vector3.new(0, HIGH_JUMP, 0)
-    end
-end)
-
--- Anti-fall
-Hum:GetPropertyChangedSignal("FloorMaterial"):Connect(function()
-    if Hum.FloorMaterial == Enum.Material.Air and HRP.Position.Y < -20 then
-        HRP.Velocity = Vector3.new(0,100,0)
-    end
-end)
-
--- Speed reset ao respawn
-LocalPlayer.CharacterAdded:Connect(function()
-    boosted = false
-end)
-
--- Layouts
-for _, scroll in ipairs({scroll1, scroll2}) do
-    local layout = Instance.new("UIListLayout", scroll)
-    layout.Padding = UDim.new(0, 10)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-end
-
-topBar.Parent = frame
-tabBar.Parent = frame
-for _, f in ipairs(tabFrames) do f.Parent = frame end
-
--- Fim do script
