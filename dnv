@@ -1,0 +1,59 @@
+local function updatelock()
+    if not activeLockTimeEsp then
+        for _, instance in pairs(lteInstances) do
+            if instance then instance:Destroy() end
+        end
+        lteInstances = {}
+        return
+    end
+
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        local billboardName = "LockTimeESP_" .. plot.Name
+        local timeLabel = plot:FindFirstChild("Purchases", true)
+            and plot.Purchases:FindFirstChild("PlotBlock", true)
+            and plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true)
+            and plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
+
+        if timeLabel and timeLabel:IsA("TextLabel") then
+            local existing = lteInstances[plot.Name]
+            local isUnlocked = timeLabel.Text == "0s"
+            local displayText = isUnlocked and "Unlocked" or ("Lock: " .. timeLabel.Text)
+
+            local color = Color3.fromRGB(255, 255, 0) -- amarelo padrão
+            if plot.Name == plotName then
+                color = Color3.fromRGB(0, 255, 0) -- verde para seu plot
+            elseif isUnlocked then
+                color = Color3.fromRGB(255, 0, 0) -- vermelho se desbloqueado
+            end
+
+            if not existing then
+                local gui = Instance.new("BillboardGui")
+                gui.Name = billboardName
+                gui.Size = UDim2.new(0, 120, 0, 25)
+                gui.StudsOffset = Vector3.new(0, 4, 0)
+                gui.AlwaysOnTop = true
+                gui.Adornee = plot.Purchases.PlotBlock.Main
+                gui.Parent = plot
+
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextScaled = true
+                label.TextColor3 = color
+                label.TextStrokeTransparency = 0
+                label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                label.Font = Enum.Font.SourceSansBold
+                label.Text = displayText
+                label.Parent = gui
+
+                lteInstances[plot.Name] = gui
+            else
+                local label = existing:FindFirstChildOfClass("TextLabel")
+                if label then
+                    label.Text = displayText
+                    label.TextColor3 = color
+                end
+            end
+        end
+    end
+end
